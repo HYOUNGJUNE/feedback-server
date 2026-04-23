@@ -341,11 +341,6 @@
       <div class="success-icon">✓</div>
       <h2 class="success-title">소중한 의견 감사합니다</h2>
       <p class="success-sub">접수번호: <span class="ref-id" id="refId"></span></p>
-      <div class="payload-box">
-        <p class="payload-label">서버 전송 데이터 (개발 확인용)</p>
-        <pre class="payload-pre" id="payloadPre"></pre>
-      </div>
-      <button class="reset-btn" onclick="handleReset()">새 의견 작성하기</button>
     </div>
   </div>
 
@@ -453,9 +448,6 @@
 
         // 성공 화면 표시
         document.getElementById("refId").textContent = result.id;
-        document.getElementById("payloadPre").textContent = JSON.stringify(
-          { ...payload, response_id: result.id }, null, 2
-        );
         document.getElementById("formView").style.display = "none";
         document.getElementById("successView").className = "success-container show";
 
