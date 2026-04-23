@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>고객 의견 관리</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Noto Sans KR', -apple-system, sans-serif;
+      background: #f1f5f9;
+      min-height: 100vh;
+      color: #1e293b;
+    }
+
+    .container { max-width: 760px; margin: 0 auto; padding: 0 16px 40px; }
+
+    /* Header */
+    .header { padding: 32px 0 24px; display: flex; justify-content: space-between; align-items: flex-start; }
+    .header h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+    .header p { margin-top: 4px; font-size: 14px; color: #64748b; }
+
+    .total-badge {
+      display: flex; flex-direction: column; align-items: center;
+      background: #fff; border-radius: 14px; padding: 12px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .total-num { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .total-label { font-size: 11px; color: #94a3b8; font-weight: 600; }
+
+    /* Stats */
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stat-card {
+      background: #fff; border-radius: 14px; padding: 16px 14px;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    .stat-icon { font-size: 20px; }
+    .stat-num { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .stat-label { font-size: 12px; color: #64748b; font-weight: 500; }
+
+    /* Filters */
+    .search-wrap { position: relative; margin-bottom: 12px; }
+    .search-wrap::before {
+      content: '🔎'; position: absolute; left: 14px; top: 50%;
+      transform: translateY(-50%); font-size: 14px; pointer-events: none;
+    }
+    .search-input {
+      width: 100%; padding: 12px 40px 12px 38px; font-size: 14px;
+      border: 2px solid #e2e8f0; border-radius: 12px; outline: none;
+      background: #fff; color: #1e293b; font-family: inherit;
+    }
+    .search-input:focus { border-color: #3b82f6; }
+
+    .tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 14px; font-size: 13px; font-weight: 600;
+      color: #64748b; background: #fff; border: 1.5px solid #e2e8f0;
+      border-radius: 10px; cursor: pointer; white-space: nowrap;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .tab.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+    .tab-count {
+      font-size: 11px; font-weight: 700; padding: 1px 7px;
+      border-radius: 10px; font-variant-numeric: tabular-nums;
+      background: #e2e8f0; color: #64748b;
+    }
+    .tab.active .tab-count { background: #fff; color: #3b82f6; }
+
+    /* Card list */
+    .list { display: flex; flex-direction: column; gap: 10px; }
+
+    .card {
+      background: #fff; border-radius: 14px; padding: 18px 20px;
+      cursor: pointer; transition: box-shadow 0.15s, transform 0.15s;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05); border: 1px solid #f1f5f9;
+    }
+    .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-1px); }
+
+    .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+    .card-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8; }
+    .card-id { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    .category-tag {
+      display: inline-block; padding: 2px 8px; border-radius: 6px;
+      font-size: 11px; font-weight: 600; background: #f1f5f9;
+      color: #475569; border: 1px solid #e2e8f0;
+    }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap;
+    }
+    .badge .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .badge-new { background: #dbeafe; color: #1d4ed8; }
+    .badge-new .dot { background: #3b82f6; }
+    .badge-reviewing { background: #fef3c7; color: #92400e; }
+    .badge-reviewing .dot { background: #f59e0b; }
+    .badge-resolved { background: #d1fae5; color: #065f46; }
+    .badge-resolved .dot { background: #10b981; }
+
+    .card-text {
+      margin: 0 0 12px; font-size: 14px; color: #334155; line-height: 1.65;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    .card-bottom {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-top: 10px; border-top: 1px solid #f1f5f9;
+    }
+    .card-phone { font-size: 13px; color: #64748b; font-variant-numeric: tabular-nums; }
+    .reveal-btn {
+      font-size: 12px; font-weight: 600; color: #3b82f6;
+      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
+      padding: 4px 10px; cursor: pointer; font-family: inherit;
+    }
+    .reveal-btn:hover { background: #dbeafe; }
+
+    /* Detail */
+    .detail-card {
+      background: #fff; border-radius: 18px; overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-top: 24px;
+      display: none;
+    }
+    .detail-card.show { display: block; }
+
+    .detail-header {
+      padding: 20px 24px; border-bottom: 1px solid #f1f5f9;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    .back-btn {
+      font-size: 14px; font-weight: 600; color: #3b82f6;
+      background: none; border: none; cursor: pointer; font-family: inherit;
+    }
+
+    .detail-meta {
+      padding: 20px 24px; display: grid; grid-template-columns: 1fr 1fr;
+      gap: 16px; border-bottom: 1px solid #f1f5f9;
+    }
+    .meta-item { display: flex; flex-direction: column; gap: 4px; }
+    .meta-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
+    .meta-value { font-size: 14px; font-weight: 500; color: #1e293b; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    .detail-content { padding: 20px 24px; border-bottom: 1px solid #f1f5f9; }
+    .detail-text { margin-top: 8px; font-size: 15px; color: #334155; line-height: 1.75; }
+
+    .detail-actions {
+      padding: 18px 24px; display: flex; align-items: center;
+      justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    }
+    .detail-actions-label { font-size: 13px; color: #64748b; font-weight: 600; }
+    .status-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .status-btn {
+      padding: 7px 16px; font-size: 13px; font-weight: 600;
+      border-radius: 8px; cursor: pointer; transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    /* Empty & footer */
+    .empty { text-align: center; padding: 60px 20px; color: #94a3b8; font-size: 14px; }
+    .footer { text-align: center; padding: 24px 0 0; font-size: 12px; color: #94a3b8; }
+
+    .loading-spinner { font-size: 28px; animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- List View -->
+    <div id="listView">
+      <div class="header">
+        <div>
+          <h1>고객 의견 관리</h1>
+          <p>접수된 고객 의견을 확인하고 관리합니다</p>
+        </div>
+        <div class="total-badge">
+          <span class="total-num" id="totalCount">0</span>
+          <span class="total-label">전체 건수</span>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card" style="border-bottom: 3px solid #3b82f6;">
+          <span class="stat-icon">📩</span>
+          <span class="stat-num" id="newCount">0</span>
+          <span class="stat-label">신규</span>
+        </div>
+        <div class="stat-card" style="border-bottom: 3px solid #f59e0b;">
+          <span class="stat-icon">🔍</span>
+          <span class="stat-num" id="reviewingCount">0</span>
+          <span class="stat-label">검토중</span>
+        </div>
+        <div class="stat-card" style="border-bottom: 3px solid #10b981;">
+          <span class="stat-icon">✅</span>
+          <span class="stat-num" id="resolvedCount">0</span>
+          <span class="stat-label">처리완료</span>
+        </div>
+      </div>
+
+      <div class="search-wrap">
+        <input type="text" class="search-input" id="searchInput" placeholder="의견 내용 또는 접수번호 검색" />
+      </div>
+
+      <div class="tabs" id="tabs"></div>
+      <div class="list" id="feedbackList"></div>
+      <div class="footer" id="footerInfo"></div>
+    </div>
+
+    <!-- Detail View -->
+    <div class="detail-card" id="detailView">
+      <div class="detail-header">
+        <button class="back-btn" onclick="showList()">← 목록으로</button>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:14px;font-weight:700;" id="detailId"></span>
+          <span id="detailBadge"></span>
+        </div>
+      </div>
+      <div class="detail-meta">
+        <div class="meta-item">
+          <span class="meta-label">구분</span>
+          <span class="meta-value" id="detailCategory"></span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">접수일시</span>
+          <span class="meta-value" id="detailDate"></span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">휴대폰번호</span>
+          <span class="meta-value" id="detailPhone"></span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">개인정보 동의</span>
+          <span class="meta-value" style="color:#10b981;">동의함 ✓</span>
+        </div>
+      </div>
+      <div class="detail-content">
+        <span class="meta-label">고객 의견</span>
+        <p class="detail-text" id="detailFeedback"></p>
+      </div>
+      <div class="detail-actions">
+        <span class="detail-actions-label">상태 변경</span>
+        <div class="status-btns" id="statusBtns"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── 설정 ───
+    const API_BASE = "/api";
+
+    let currentFilter = "all";
+    let currentData = [];
+    let currentCounts = { all: 0, new: 0, reviewing: 0, resolved: 0 };
+    let revealedPhones = {};
+    let currentDetailId = null;
+    let searchTimer = null;
+
+    const STATUS = {
+      new:       { label: "신규",     cls: "badge-new" },
+      reviewing: { label: "검토중",   cls: "badge-reviewing" },
+      resolved:  { label: "처리완료", cls: "badge-resolved" },
+    };
+
+    // ─── 데이터 로드 ───
+    async function loadData() {
+      try {
+        const params = new URLSearchParams({ limit: "100", order: "DESC" });
+        if (currentFilter !== "all") params.set("status", currentFilter);
+        const searchVal = document.getElementById("searchInput").value.trim();
+        if (searchVal) params.set("search", searchVal);
+
+        const res = await fetch(`${API_BASE}/feedback?${params}`);
+        const json = await res.json();
+        currentData = json.items || [];
+        currentCounts = json.counts || { all: 0, new: 0, reviewing: 0, resolved: 0 };
+        renderAll();
+      } catch (err) {
+        document.getElementById("feedbackList").innerHTML =
+          '<div class="empty"><p>⚠️ 서버에 연결할 수 없습니다.<br>서버가 실행 중인지 확인해 주세요.</p></div>';
+      }
+    }
+
+    // ─── 렌더링 ───
+    function renderAll() {
+      document.getElementById("totalCount").textContent = currentCounts.all;
+      document.getElementById("newCount").textContent = currentCounts.new;
+      document.getElementById("reviewingCount").textContent = currentCounts.reviewing;
+      document.getElementById("resolvedCount").textContent = currentCounts.resolved;
+      renderTabs();
+      renderList();
+    }
+
+    function renderTabs() {
+      const tabs = [
+        { key: "all", label: "전체" },
+        { key: "new", label: "신규" },
+        { key: "reviewing", label: "검토중" },
+        { key: "resolved", label: "처리완료" },
+      ];
+      document.getElementById("tabs").innerHTML = tabs.map(t =>
+        `<button class="tab${currentFilter === t.key ? ' active' : ''}" onclick="setFilter('${t.key}')">
+          ${t.label}
+          <span class="tab-count">${currentCounts[t.key]}</span>
+        </button>`
+      ).join("");
+    }
+
+    function makeBadge(status) {
+      const s = STATUS[status];
+      return `<span class="badge ${s.cls}"><span class="dot"></span>${s.label}</span>`;
+    }
+
+    function relativeTime(iso) {
+      const diff = Date.now() - new Date(iso).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 60) return `${mins}분 전`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}시간 전`;
+      return `${Math.floor(hrs / 24)}일 전`;
+    }
+
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+
+    function renderList() {
+      const listEl = document.getElementById("feedbackList");
+
+      if (currentData.length === 0) {
+        listEl.innerHTML = '<div class="empty"><span style="font-size:40px">📭</span><p style="margin:12px 0 0;color:#64748b;">해당하는 의견이 없습니다</p></div>';
+        document.getElementById("footerInfo").innerHTML = "";
+        return;
+      }
+
+      listEl.innerHTML = currentData.map(item => {
+        const phone = revealedPhones[item.id] || item.phone_masked || "***-****-****";
+        return `
+        <div class="card" onclick="showDetail('${item.id}')">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-id">${item.id}</span>
+              <span style="color:#cbd5e1;">·</span>
+              <span>${relativeTime(item.consent_timestamp)}</span>
+              ${item.category ? `<span style="color:#cbd5e1;">·</span><span class="category-tag">${item.category}</span>` : ''}
+            </div>
+            ${makeBadge(item.status)}
+          </div>
+          <p class="card-text">${escapeHtml(item.feedback)}</p>
+          <div class="card-bottom">
+            <span class="card-phone">📱 ${phone}</span>
+            <button class="reveal-btn" onclick="event.stopPropagation(); togglePhone('${item.id}')">
+              ${revealedPhones[item.id] ? '숨기기' : '확인'}
+            </button>
+          </div>
+        </div>`;
+      }).join("");
+
+      document.getElementById("footerInfo").innerHTML = `<p>총 ${currentData.length}건 표시됨 · 고객 개인정보는 암호화되어 저장됩니다</p>`;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ─── 필터 ───
+    function setFilter(key) {
+      currentFilter = key;
+      loadData();
+    }
+
+    // ─── 검색 ───
+    document.getElementById("searchInput").addEventListener("input", function () {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => loadData(), 400);
+    });
+
+    // ─── 번호 확인 ───
+    async function togglePhone(id) {
+      if (revealedPhones[id]) {
+        delete revealedPhones[id];
+        renderList();
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/feedback/${id}`);
+        const json = await res.json();
+        revealedPhones[id] = json.phone_decrypted || "조회 실패";
+        renderList();
+      } catch {
+        revealedPhones[id] = "조회 실패";
+        renderList();
+      }
+    }
+
+    // ─── 상세 보기 ───
+    async function showDetail(id) {
+      currentDetailId = id;
+      try {
+        const res = await fetch(`${API_BASE}/feedback/${id}`);
+        const item = await res.json();
+
+        document.getElementById("listView").style.display = "none";
+        const detail = document.getElementById("detailView");
+        detail.className = "detail-card show";
+
+        document.getElementById("detailId").textContent = item.id;
+        document.getElementById("detailBadge").innerHTML = makeBadge(item.status);
+        document.getElementById("detailCategory").textContent = item.category || "-";
+        document.getElementById("detailDate").textContent = formatDate(item.consent_timestamp);
+        document.getElementById("detailFeedback").textContent = item.feedback;
+
+        // 번호
+        const phoneEl = document.getElementById("detailPhone");
+        const revealed = revealedPhones[id] || item.phone_decrypted;
+        phoneEl.innerHTML = `${revealed || item.phone_masked}
+          <button class="reveal-btn" onclick="toggleDetailPhone('${id}', '${item.phone_decrypted || ''}')">
+            ${revealedPhones[id] ? '숨기기' : (item.phone_decrypted ? '표시됨' : '확인')}
+          </button>`;
+
+        // 상태 버튼
+        const btnHTML = Object.entries(STATUS).map(([key, val]) => {
+          const isActive = item.status === key;
+          const colors = {
+            new: { bg: "#dbeafe", color: "#1d4ed8", border: "#3b82f6" },
+            reviewing: { bg: "#fef3c7", color: "#92400e", border: "#f59e0b" },
+            resolved: { bg: "#d1fae5", color: "#065f46", border: "#10b981" },
+          };
+          const c = colors[key];
+          return `<button class="status-btn" style="
+            background:${isActive ? c.bg : '#f8fafc'};
+            color:${isActive ? c.color : '#94a3b8'};
+            border:1.5px solid ${isActive ? c.border : '#e2e8f0'};"
+            onclick="changeStatus('${id}', '${key}')">${val.label}</button>`;
+        }).join("");
+        document.getElementById("statusBtns").innerHTML = btnHTML;
+
+      } catch (err) {
+        alert("상세 조회에 실패했습니다.");
+      }
+    }
+
+    function toggleDetailPhone(id, decrypted) {
+      if (revealedPhones[id]) {
+        delete revealedPhones[id];
+      } else {
+        revealedPhones[id] = decrypted;
+      }
+      showDetail(id);
+    }
+
+    function showList() {
+      document.getElementById("detailView").className = "detail-card";
+      document.getElementById("listView").style.display = "block";
+      loadData();
+    }
+
+    // ─── 상태 변경 ───
+    async function changeStatus(id, newStatus) {
+      try {
+        const res = await fetch(`${API_BASE}/feedback/${id}/status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        if (res.ok) {
+          showDetail(id);
+        }
+      } catch {
+        alert("상태 변경에 실패했습니다.");
+      }
+    }
+
+    // ─── 초기 로드 ───
+    loadData();
+  </script>
+</body>
+</html>

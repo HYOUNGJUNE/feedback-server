@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>고객의 소리</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Noto Sans KR', -apple-system, sans-serif;
+      background: linear-gradient(160deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 520px;
+      background: #fff;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+    }
+
+    .header {
+      position: relative;
+      padding: 40px 32px 28px;
+      background: linear-gradient(135deg, #1e293b, #334155);
+      color: #fff;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #3b82f6, #06b6d4, #8b5cf6);
+    }
+
+    .header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+    .header p { margin-top: 8px; font-size: 14px; color: #94a3b8; }
+
+    .form { padding: 28px 32px 32px; }
+
+    .field { margin-bottom: 24px; }
+
+    .label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+
+    .lock { font-size: 13px; cursor: help; }
+
+    input[type="tel"], textarea, select {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 15px;
+      font-family: inherit;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      outline: none;
+      background: #f8fafc;
+      color: #1e293b;
+      transition: border-color 0.2s;
+      appearance: none;
+    }
+
+    input[type="tel"]:focus, textarea:focus, select:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+
+    .select-wrap {
+      position: relative;
+    }
+
+    .select-wrap::after {
+      content: '▾';
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    select { cursor: pointer; padding-right: 40px; }
+
+    input[type="tel"] { letter-spacing: 0.05em; }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+      line-height: 1.6;
+    }
+
+    .hint {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .char-count {
+      text-align: right;
+      margin-top: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #94a3b8;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .char-count.warn { color: #f39c12; }
+    .char-count.over { color: #e74c3c; }
+
+    .consent-box {
+      background: #f1f5f9;
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 24px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .consent-label {
+      display: flex;
+      gap: 12px;
+      cursor: pointer;
+      align-items: flex-start;
+    }
+
+    .checkbox {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      border: 2px solid #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+      transition: all 0.15s;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .checkbox.checked {
+      background: #3b82f6;
+      border-color: #3b82f6;
+    }
+
+    .checkbox.checked::after {
+      content: '✓';
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .consent-text { font-size: 14px; font-weight: 600; color: #1e293b; }
+
+    .consent-detail {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    .error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      color: #dc2626;
+      display: none;
+    }
+
+    .error-box.show { display: flex; align-items: center; gap: 8px; }
+
+    .submit-btn {
+      width: 100%;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: inherit;
+      color: #fff;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+      box-shadow: 0 4px 14px rgba(59,130,246,0.4);
+    }
+
+    .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59,130,246,0.5); }
+    .submit-btn:disabled { background: #cbd5e1; box-shadow: none; cursor: not-allowed; transform: none; }
+    .submit-btn.loading { background: #64748b; cursor: wait; }
+
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .spinner { display: inline-block; animation: spin 1s linear infinite; font-size: 20px; }
+
+    .footer {
+      text-align: center;
+      padding: 16px 32px 20px;
+      font-size: 12px;
+      color: #94a3b8;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    /* 성공 화면 */
+    .success-container { padding: 48px 32px; text-align: center; display: none; }
+    .success-container.show { display: block; }
+
+    .success-icon {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+      font-size: 32px; font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      box-shadow: 0 8px 24px rgba(16,185,129,0.3);
+    }
+
+    .success-title { font-size: 22px; font-weight: 700; color: #1e293b; }
+    .success-sub { margin: 8px 0 24px; font-size: 14px; color: #64748b; }
+    .ref-id { font-weight: 600; color: #3b82f6; }
+
+    .payload-box {
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: left;
+      margin-bottom: 24px;
+    }
+
+    .payload-label {
+      margin-bottom: 8px;
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+    }
+
+    .payload-pre {
+      font-size: 12px;
+      color: #a5f3fc;
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.6;
+      font-family: 'Consolas', 'Courier New', monospace;
+    }
+
+    .reset-btn {
+      padding: 14px 32px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      color: #3b82f6;
+      background: #eff6ff;
+      border: 2px solid #bfdbfe;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    .reset-btn:hover { background: #dbeafe; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <!-- 폼 화면 -->
+    <div id="formView">
+      <div class="header">
+        <h1>고객의 소리</h1>
+        <p>여러분의 소중한 의견이 더 나은 서비스를 만듭니다</p>
+      </div>
+
+      <div class="form">
+        <div class="field">
+          <label class="label">구분</label>
+          <div class="select-wrap">
+            <select id="category">
+              <option value="" disabled selected>선택해 주세요</option>
+              <option value="개인">개인</option>
+              <option value="법인담당자">법인담당자</option>
+              <option value="조합담당자">조합담당자</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label">휴대폰번호 <span class="lock" title="암호화 전송">🔒</span></label>
+          <input type="tel" id="phone" placeholder="010-0000-0000" maxlength="13" />
+        </div>
+
+        <div class="field">
+          <label class="label">고객 의견</label>
+          <textarea id="feedback" placeholder="서비스 이용 중 느끼신 점이나 개선 사항을 자유롭게 작성해 주세요." rows="6"></textarea>
+          <div class="char-count" id="charCount">0 / 500</div>
+        </div>
+
+        <div class="consent-box">
+          <label class="consent-label">
+            <div class="checkbox" id="consentBox" onclick="toggleConsent()"></div>
+            <div>
+              <span class="consent-text">[필수] 개인정보 수집 및 이용에 동의합니다</span>
+              <p class="consent-detail">
+                수집 항목: 휴대폰번호 · 수집 목적: 고객 의견 접수 및 회신 · 보유 기간: 접수일로부터 1년 후 파기
+              </p>
+            </div>
+          </label>
+        </div>
+
+        <div class="error-box" id="errorBox"><span>⚠️</span> <span id="errorMsg"></span></div>
+
+        <button class="submit-btn" id="submitBtn" disabled onclick="handleSubmit()">
+          의견 제출하기
+        </button>
+      </div>
+
+      <div class="footer"></div>
+    </div>
+
+    <!-- 성공 화면 -->
+    <div class="success-container" id="successView">
+      <div class="success-icon">✓</div>
+      <h2 class="success-title">소중한 의견 감사합니다</h2>
+      <p class="success-sub">접수번호: <span class="ref-id" id="refId"></span></p>
+      <div class="payload-box">
+        <p class="payload-label">서버 전송 데이터 (개발 확인용)</p>
+        <pre class="payload-pre" id="payloadPre"></pre>
+      </div>
+      <button class="reset-btn" onclick="handleReset()">새 의견 작성하기</button>
+    </div>
+  </div>
+
+  <script>
+    // ─── 설정 ───
+    // ⚠️ 서버 주소를 실제 환경에 맞게 변경하세요
+    const API_BASE = "/api";
+    const ENCRYPTION_KEY_HEX = "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90";
+    const MAX_FEEDBACK = 500;
+
+    let consent = false;
+
+    // ─── 암호화 ───
+    async function getEncryptionKey() {
+      const keyBytes = new Uint8Array(ENCRYPTION_KEY_HEX.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+      return crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt"]);
+    }
+
+    async function encryptPhone(phone) {
+      const key = await getEncryptionKey();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encoded = new TextEncoder().encode(phone);
+      const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
+      const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+      combined.set(iv);
+      combined.set(new Uint8Array(ciphertext), iv.length);
+      return btoa(String.fromCharCode(...combined));
+    }
+
+    // ─── 휴대폰번호 포맷팅 ───
+    const phoneInput = document.getElementById("phone");
+    const categorySelect = document.getElementById("category");
+
+    categorySelect.addEventListener("change", validateForm);
+
+    phoneInput.addEventListener("input", function () {
+      let nums = this.value.replace(/\D/g, "").slice(0, 11);
+      if (nums.length <= 3) this.value = nums;
+      else if (nums.length <= 7) this.value = nums.slice(0, 3) + "-" + nums.slice(3);
+      else this.value = nums.slice(0, 3) + "-" + nums.slice(3, 7) + "-" + nums.slice(7);
+      validateForm();
+    });
+
+    // ─── 글자수 카운트 ───
+    const feedbackInput = document.getElementById("feedback");
+    const charCountEl = document.getElementById("charCount");
+    feedbackInput.addEventListener("input", function () {
+      if (this.value.length > MAX_FEEDBACK) this.value = this.value.slice(0, MAX_FEEDBACK);
+      const len = this.value.length;
+      charCountEl.textContent = `${len} / ${MAX_FEEDBACK}`;
+      charCountEl.className = "char-count" + (len >= MAX_FEEDBACK ? " over" : len >= MAX_FEEDBACK * 0.8 ? " warn" : "");
+      validateForm();
+    });
+
+    // ─── 동의 체크 ───
+    function toggleConsent() {
+      consent = !consent;
+      document.getElementById("consentBox").className = "checkbox" + (consent ? " checked" : "");
+      validateForm();
+    }
+
+    // ─── 유효성 검사 ───
+    function validateForm() {
+      const categoryValid = categorySelect.value !== "";
+      const phoneValid = phoneInput.value.replace(/\D/g, "").length >= 10;
+      const feedbackValid = feedbackInput.value.trim().length >= 5;
+      document.getElementById("submitBtn").disabled = !(categoryValid && phoneValid && feedbackValid && consent);
+    }
+
+    // ─── 제출 ───
+    async function handleSubmit() {
+      const btn = document.getElementById("submitBtn");
+      const errorBox = document.getElementById("errorBox");
+
+      btn.disabled = true;
+      btn.className = "submit-btn loading";
+      btn.innerHTML = '<span class="spinner">⟳</span>';
+      errorBox.className = "error-box";
+
+      try {
+        const rawPhone = phoneInput.value.replace(/-/g, "");
+        const encryptedPhone = await encryptPhone(rawPhone);
+
+        const payload = {
+          category: categorySelect.value,
+          phone_encrypted: encryptedPhone,
+          feedback: feedbackInput.value.trim(),
+          privacy_consent: consent,
+          consent_timestamp: new Date().toISOString(),
+          client_info: { user_agent: navigator.userAgent, language: navigator.language },
+        };
+
+        const response = await fetch(`${API_BASE}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || `서버 오류: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // 성공 화면 표시
+        document.getElementById("refId").textContent = result.id;
+        document.getElementById("payloadPre").textContent = JSON.stringify(
+          { ...payload, response_id: result.id }, null, 2
+        );
+        document.getElementById("formView").style.display = "none";
+        document.getElementById("successView").className = "success-container show";
+
+      } catch (err) {
+        document.getElementById("errorMsg").textContent = err.message || "전송 중 오류가 발생했습니다.";
+        errorBox.className = "error-box show";
+        btn.className = "submit-btn";
+        btn.textContent = "의견 제출하기";
+        validateForm();
+      }
+    }
+
+    // ─── 초기화 ───
+    function handleReset() {
+      categorySelect.selectedIndex = 0;
+      phoneInput.value = "";
+      feedbackInput.value = "";
+      consent = false;
+      document.getElementById("consentBox").className = "checkbox";
+      charCountEl.textContent = "0 / 500";
+      charCountEl.className = "char-count";
+      document.getElementById("errorBox").className = "error-box";
+      document.getElementById("submitBtn").className = "submit-btn";
+      document.getElementById("submitBtn").textContent = "의견 제출하기";
+      document.getElementById("submitBtn").disabled = true;
+      document.getElementById("formView").style.display = "block";
+      document.getElementById("successView").className = "success-container";
+    }
+  </script>
+</body>
+</html>
