@@ -3,8 +3,8 @@ const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const crypto = require("crypto");
-const fs = require("fs");
 const path = require("path");
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,38 +23,25 @@ const limiter = rateLimit({
 });
 app.use("/api/", limiter);
 
-// 정적 파일 제공 (HTML 페이지)
 app.use(express.static(path.join(__dirname, "public")));
 
 // ────────────────────────────────────────────
-// 2. JSON 파일 기반 데이터 저장소
+// 2. Supabase 연결
 // ────────────────────────────────────────────
-const DB_PATH = path.join(__dirname, "feedback-data.json");
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-function readDB() {
-  try {
-    if (!fs.existsSync(DB_PATH)) {
-      fs.writeFileSync(DB_PATH, JSON.stringify([], null, 2), "utf8");
-      return [];
-    }
-    const raw = fs.readFileSync(DB_PATH, "utf8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error("❌ 환경변수 SUPABASE_URL, SUPABASE_KEY를 설정해 주세요.");
+  process.exit(1);
 }
 
-function writeDB(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), "utf8");
-}
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+console.log("✅ Supabase 연결 완료");
 
 // ────────────────────────────────────────────
 // 3. 암호화/복호화 유틸 (AES-256-GCM)
 // ────────────────────────────────────────────
-//
-// ⚠️ 운영 시 반드시 환경변수로 관리하세요:
-//    Render 대시보드 → Environment → ENCRYPTION_KEY 설정
-//
 const ENCRYPTION_KEY = Buffer.from(
   process.env.ENCRYPTION_KEY ||
     "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
@@ -93,7 +80,7 @@ app.get("/api/health", (req, res) => {
 });
 
 // ── [POST] 고객 의견 접수 ──
-app.post("/api/feedback", (req, res) => {
+app.post("/api/feedback", async (req, res) => {
   try {
     const { category, phone_encrypted, feedback, privacy_consent, consent_timestamp, client_info } = req.body;
 
@@ -114,24 +101,19 @@ app.post("/api/feedback", (req, res) => {
     }
 
     const id = `FB-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const now = new Date().toISOString();
 
-    const newItem = {
+    const { error } = await supabase.from("feedback").insert({
       id,
       category,
       phone_encrypted,
       feedback: feedback.trim(),
       privacy_consent: true,
-      consent_timestamp: consent_timestamp || now,
+      consent_timestamp: consent_timestamp || new Date().toISOString(),
       status: "new",
       client_info: client_info || null,
-      created_at: now,
-      updated_at: now,
-    };
+    });
 
-    const data = readDB();
-    data.unshift(newItem);
-    writeDB(data);
+    if (error) throw error;
 
     console.log(`📩 새 의견 접수: ${id}`);
     res.status(201).json({ success: true, id });
@@ -142,43 +124,46 @@ app.post("/api/feedback", (req, res) => {
 });
 
 // ── [GET] 의견 목록 조회 ──
-app.get("/api/feedback", (req, res) => {
+app.get("/api/feedback", async (req, res) => {
   try {
     const { status, search, page = 1, limit = 20, order = "DESC" } = req.query;
 
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const offset = (pageNum - 1) * limitNum;
 
-    let data = readDB();
-
-    if (order.toUpperCase() === "ASC") {
-      data.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    } else {
-      data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    }
+    // 전체 건수 조회
+    const { data: allData } = await supabase
+      .from("feedback")
+      .select("status");
 
     const counts = {
-      all: data.length,
-      new: data.filter((d) => d.status === "new").length,
-      reviewing: data.filter((d) => d.status === "reviewing").length,
-      resolved: data.filter((d) => d.status === "resolved").length,
+      all: allData ? allData.length : 0,
+      new: allData ? allData.filter((d) => d.status === "new").length : 0,
+      reviewing: allData ? allData.filter((d) => d.status === "reviewing").length : 0,
+      resolved: allData ? allData.filter((d) => d.status === "resolved").length : 0,
     };
 
+    // 목록 쿼리 빌드
+    let query = supabase
+      .from("feedback")
+      .select("id, category, phone_encrypted, feedback, privacy_consent, consent_timestamp, status, created_at, updated_at")
+      .order("created_at", { ascending: order.toUpperCase() === "ASC" })
+      .range(offset, offset + limitNum - 1);
+
     if (status && ["new", "reviewing", "resolved"].includes(status)) {
-      data = data.filter((d) => d.status === status);
+      query = query.eq("status", status);
     }
 
     if (search && search.trim()) {
-      const q = search.trim().toLowerCase();
-      data = data.filter(
-        (d) => d.feedback.toLowerCase().includes(q) || d.id.toLowerCase().includes(q)
-      );
+      const q = search.trim();
+      query = query.or(`feedback.ilike.%${q}%,id.ilike.%${q}%`);
     }
 
-    const total = data.length;
-    const totalPages = Math.ceil(total / limitNum);
-    const offset = (pageNum - 1) * limitNum;
-    const items = data.slice(offset, offset + limitNum).map((row) => {
+    const { data: rows, error } = await query;
+    if (error) throw error;
+
+    const items = (rows || []).map((row) => {
       const decrypted = decryptPhone(row.phone_encrypted);
       return {
         id: row.id,
@@ -193,7 +178,12 @@ app.get("/api/feedback", (req, res) => {
       };
     });
 
-    res.json({ items, pagination: { page: pageNum, limit: limitNum, total, totalPages }, counts });
+    const total = items.length;
+    res.json({
+      items,
+      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(counts.all / limitNum) },
+      counts,
+    });
   } catch (err) {
     console.error("❌ 목록 조회 오류:", err.message);
     res.status(500).json({ error: "서버 오류가 발생했습니다." });
@@ -201,12 +191,17 @@ app.get("/api/feedback", (req, res) => {
 });
 
 // ── [GET] 의견 상세 조회 ──
-app.get("/api/feedback/:id", (req, res) => {
+app.get("/api/feedback/:id", async (req, res) => {
   try {
-    const data = readDB();
-    const row = data.find((d) => d.id === req.params.id);
+    const { data: row, error } = await supabase
+      .from("feedback")
+      .select("*")
+      .eq("id", req.params.id)
+      .single();
 
-    if (!row) return res.status(404).json({ error: "해당 의견을 찾을 수 없습니다." });
+    if (error || !row) {
+      return res.status(404).json({ error: "해당 의견을 찾을 수 없습니다." });
+    }
 
     const decrypted = decryptPhone(row.phone_encrypted);
     res.json({
@@ -229,20 +224,19 @@ app.get("/api/feedback/:id", (req, res) => {
 });
 
 // ── [PATCH] 상태 변경 ──
-app.patch("/api/feedback/:id/status", (req, res) => {
+app.patch("/api/feedback/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
     if (!["new", "reviewing", "resolved"].includes(status)) {
       return res.status(400).json({ error: "유효하지 않은 상태값입니다." });
     }
 
-    const data = readDB();
-    const index = data.findIndex((d) => d.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: "해당 의견을 찾을 수 없습니다." });
+    const { error } = await supabase
+      .from("feedback")
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", req.params.id);
 
-    data[index].status = status;
-    data[index].updated_at = new Date().toISOString();
-    writeDB(data);
+    if (error) throw error;
 
     console.log(`🔄 상태 변경: ${req.params.id} → ${status}`);
     res.json({ success: true, id: req.params.id, status });
@@ -253,14 +247,14 @@ app.patch("/api/feedback/:id/status", (req, res) => {
 });
 
 // ── [DELETE] 의견 삭제 ──
-app.delete("/api/feedback/:id", (req, res) => {
+app.delete("/api/feedback/:id", async (req, res) => {
   try {
-    const data = readDB();
-    const index = data.findIndex((d) => d.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: "해당 의견을 찾을 수 없습니다." });
+    const { error } = await supabase
+      .from("feedback")
+      .delete()
+      .eq("id", req.params.id);
 
-    data.splice(index, 1);
-    writeDB(data);
+    if (error) throw error;
 
     console.log(`🗑️ 의견 삭제: ${req.params.id}`);
     res.json({ success: true, id: req.params.id });
